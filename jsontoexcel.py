@@ -7,7 +7,7 @@ from openpyxl.utils import get_column_letter
 
 def convert_json_to_excel():
     try:
-        json_file = 'pajak_ter_202505220616.json'
+        json_file = 'fileku.json'
         if not os.path.exists(json_file):
             raise FileNotFoundError(f"JSON file '{json_file}' not found")
 
@@ -15,22 +15,22 @@ def convert_json_to_excel():
         with open(json_file, 'r') as file:
             data = json.load(file)
         
-        if 'pajak_ter' not in data:
-            raise KeyError("Required key 'pajak_ter' not found in JSON data")
+        # Get the SQL query key (first key in the JSON)
+        query_key = list(data.keys())[0]
         
         # Convert to DataFrame
-        df = pd.DataFrame(data['pajak_ter'])
+        df = pd.DataFrame(data[query_key])
         
         # Export to Excel
-        excel_file = 'pajak_ter.xlsx'
-        df.to_excel(excel_file, index=False, sheet_name='Pajak')
+        excel_file = 'outlet_data.xlsx'
+        df.to_excel(excel_file, index=False, sheet_name='Outlets')
         
         # Load workbook for formatting
         wb = load_workbook(excel_file)
-        ws = wb['Pajak']
+        ws = wb['Outlets']
         
         # Define header color (10b4b1) - convert to RGB format
-        header_fill = PatternFill(start_color='FF10B4B1',  # Add FF prefix for RGB
+        header_fill = PatternFill(start_color='FF10B4B1',
                                 end_color='FF10B4B1',
                                 fill_type='solid')
         
