@@ -37,15 +37,24 @@ def clean_longitude(lon):
     return cleaned_lon
 
 def process_data():
-    with open('template_outlet.json', 'r') as file:
+    nama_file = 'matched_users.json'
+    with open(nama_file, 'r') as file:
         data = json.load(file)
     for record in data:
+        if 'name' in record and isinstance(record['name'], str):
+            record['name'] = record['name'].strip()
+        if 'nama client' in record and isinstance(record['nama client'], str):
+            record['nama client'] = record['nama client'].strip()
+        if 'nama outlet' in record and isinstance(record['nama outlet'], str):
+            record['nama outlet'] = record['nama outlet'].strip()
         # Clean latitude and longitude
-        record['latitude'] = clean_latitude(record['latitude'])
-        record['longitude'] = clean_longitude(record['longitude'])
+        if 'latitude' in record:
+            record['latitude'] = clean_latitude(record['latitude'])
+        if 'longitude' in record:
+            record['longitude'] = clean_longitude(record['longitude'])
     df = pd.DataFrame(data)
-    df.to_excel('cleaned_outlet_data.xlsx', index=False)
-    print("Data has been cleaned and saved to cleaned_outlet_data.xlsx")
+    df.to_excel(f'{nama_file.split(".")[0]}-clean.xlsx', index=False)
+    print(f"Data has been cleaned and saved to {nama_file.split('.')[0]}-clean.xlsx")
 
 if __name__ == "__main__":
     process_data()
