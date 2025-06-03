@@ -7,22 +7,25 @@ from openpyxl.utils import get_column_letter
 
 def convert_json_to_excel():
     try:
-        json_file = 'fileku.json'
+        json_file = 'client_outlet_202506031523.json'
         if not os.path.exists(json_file):
-            raise FileNotFoundError(f"JSON file '{json_file}' not found")
-
-        # Read JSON file
-        with open(json_file, 'r') as file:
+            raise FileNotFoundError(f"JSON file '{json_file}' not found")        # Read JSON file with UTF-8 encoding to handle special characters
+        with open(json_file, 'r', encoding='utf-8') as file:
             data = json.load(file)
         
-        # Get the SQL query key (first key in the JSON)
-        query_key = list(data.keys())[0]
-        
-        # Convert to DataFrame
-        df = pd.DataFrame(data[query_key])
+        # Check if data is a list or dict
+        if isinstance(data, list):
+            # If it's a list, use it directly
+            df = pd.DataFrame(data)
+        elif isinstance(data, dict):
+            # If it's a dict, get the first key's value
+            query_key = list(data.keys())[0]
+            df = pd.DataFrame(data[query_key])
+        else:
+            raise ValueError("JSON data must be either a list or a dictionary")
         
         # Export to Excel
-        excel_file = 'outlet_data.xlsx'
+        excel_file = 'excel-baru.xlsx'
         df.to_excel(excel_file, index=False, sheet_name='Outlets')
         
         # Load workbook for formatting
