@@ -2,6 +2,7 @@ import json
 import pandas as pd
 import re
 import os
+import sys
 
 def clean_latitude(lat):
     """Clean and validate latitude values. Valid range: -90 to 90"""
@@ -28,9 +29,29 @@ def clean_latitude(lat):
             lat_float = 90.0
             
         return f"{lat_float:.6f}"
-        
     except (ValueError, TypeError):
         return '0.0'
+
+def clean_ptkp(ptkp):
+    """Clean and format PTKP values"""
+    if ptkp is None or ptkp == '' or str(ptkp).strip() == '':
+        return None
+    
+    try:
+        # Convert to string and trim whitespace
+        ptkp_str = str(ptkp).strip()
+        
+        if not ptkp_str:
+            return None
+        
+        # Check if it contains TK or K followed by a number
+        # Add "/" before the number if pattern matches TK2, K2, etc.
+        ptkp_clean = re.sub(r'(TK|K)(\d)', r'\1/\2', ptkp_str, flags=re.IGNORECASE)
+        
+        return ptkp_clean
+        
+    except Exception:
+        return None
 
 def clean_longitude(lon):
     """Clean and validate longitude values. Valid range: -180 to 180"""
@@ -61,14 +82,40 @@ def clean_longitude(lon):
     except (ValueError, TypeError):
         return '0.0'
 
-def process_data():
+def process_data(input_filename=None):
     """Process outlet data with improved error handling and validation"""
-    input_file = 'user_client_54_combined.json'
-    output_file = 'cleaned-user_client_54_combined.xlsx'
+    if input_filename is None:
+        input_file = 'template_isian_database_NEW_LXC.json'  # default filename
+    else:
+        input_file = input_filename
     
-    # Check if input file exists
+    # Generate output filename based on input filename
+    if input_file.endswith('.json'):
+        # Remove .json extension properly
+        base_name = input_file[:-5]
+        # Ensure we have a valid base name
+        if not base_name or base_name.strip() == '':
+            base_name = 'data'
+        output_file = f"cleaned-{base_name}.xlsx"
+    else:
+        # For non-json files, just add the extension
+        base_name = input_file
+        if not base_name or base_name.strip() == '':
+            base_name = 'data'
+        output_file = f"cleaned-{base_name}.xlsx"
+      # Check if input file exists
     if not os.path.exists(input_file):
         print(f"Error: Input file '{input_file}' not found.")
+        return
+    
+    # Validate output filename
+    try:
+        # Test if we can create the output file path
+        output_dir = os.path.dirname(output_file)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+    except Exception as e:
+        print(f"Error: Cannot create output directory: {e}")
         return
     
     try:
@@ -103,6 +150,24 @@ def process_data():
               # Clean string fields
             if 'name' in record and record['name']:
                 record['name'] = str(record['name']).strip()
+
+            if 'phone' in record and record['phone']:
+                record['phone'] = str(record['phone']).strip()
+
+            if 'client' in record and record['client']:
+                record['client'] = str(record['client']).strip()
+
+            if 'outlet' in record and record['outlet']:
+                record['outlet'] = str(record['outlet']).strip()
+
+            if 'rekening' in record and record['rekening']:
+                record['rekening'] = str(record['rekening']).strip()
+
+            if 'kk' in record and record['kk']:
+                record['kk'] = str(record['kk']).strip()
+            
+            if 'ptkp' in record:
+                record['ptkp'] = clean_ptkp(record['ptkp'])
                 
             if 'email' in record:
                 if record['email'] is None or record['email'] == '' or str(record['email']).strip() == '':
@@ -134,4 +199,13 @@ def process_data():
         print(f"Error processing data: {e}")
 
 if __name__ == "__main__":
-    process_data()
+    # Check if filename is provided as command line argument
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+        print(f"Processing file: {filename}")
+        process_data(filename)
+    else:
+        print("Usage: python datacleansing.py <json_filename>")
+        print("Example: python datacleansing.py data.json")
+        print("Using default file: Aqua haier.json")
+        process_data()
