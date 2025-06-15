@@ -3,26 +3,6 @@ import json
 import sys
 from pathlib import Path
 from openpyxl import load_workbook
-from datetime import datetime, date
-import re
-import numpy as np
-
-class CustomJSONEncoder(json.JSONEncoder):
-    """Custom JSON encoder to handle pandas/numpy types"""
-    def default(self, obj):
-        if isinstance(obj, pd.Timestamp):
-            return obj.strftime('%Y-%m-%d')
-        elif isinstance(obj, (datetime, date)):
-            return obj.strftime('%Y-%m-%d')
-        elif isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif pd.isna(obj):
-            return None
-        return super().default(obj)
 
 def rgb_to_color_name_modern(r, g, b):
     """Modern pattern matching approach"""
@@ -128,72 +108,6 @@ def get_cell_color(cell):
     
     return None
 
-def format_birth_date(date_value):
-    """Format birth_date to yyyy-mm-dd format"""
-    if pd.isna(date_value) or date_value is None or str(date_value).strip() == '':
-        return None
-    
-    # Handle pandas Timestamp objects first
-    if isinstance(date_value, pd.Timestamp):
-        return date_value.strftime('%Y-%m-%d')
-    
-    # If it's already a datetime object (from pandas)
-    if isinstance(date_value, (datetime, date)):
-        return date_value.strftime('%Y-%m-%d')
-    
-    # Convert to string first
-    date_str = str(date_value).strip()
-    
-    # If already in yyyy-mm-dd format, return as is
-    yyyy_mm_dd_pattern = r'^\d{4}-\d{2}-\d{2}$'
-    if re.match(yyyy_mm_dd_pattern, date_str):
-        return date_str
-    
-    # Try different date formats
-    date_formats = [
-        '%m/%d/%Y',    # 9/15/1997, 12/19/1997
-        '%m/%d/%y',    # 9/15/97, 12/19/97
-        '%Y-%m-%d',    # 1995-01-12, 1998-04-08
-        '%d/%m/%Y',    # 19/4/1997
-        '%d/%m/%y',    # 19/4/97
-        '%Y/%m/%d',    # 1997/9/15
-        '%m-%d-%Y',    # 9-15-1997
-        '%d-%m-%Y',    # 15-9-1997
-    ]
-    
-    for fmt in date_formats:
-        try:
-            parsed_date = datetime.strptime(date_str, fmt)
-            return parsed_date.strftime('%Y-%m-%d')
-        except ValueError:
-            continue
-    
-    # If nothing works, try pandas to_datetime as last resort
-    try:
-        parsed_date = pd.to_datetime(date_str, infer_datetime_format=True)
-        return str(parsed_date.strftime('%Y-%m-%d'))
-    except:
-        print(f"Warning: Could not parse date '{date_value}', keeping original value")
-        return str(date_str)
-
-def clean_record_values(record):
-    """Clean all values in a record to ensure JSON serialization"""
-    cleaned_record = {}
-    for key, value in record.items():
-        if pd.isna(value):
-            cleaned_record[key] = None
-        elif isinstance(value, pd.Timestamp):
-            cleaned_record[key] = value.strftime('%Y-%m-%d')
-        elif isinstance(value, (datetime, date)):
-            cleaned_record[key] = value.strftime('%Y-%m-%d')
-        elif isinstance(value, (np.integer, np.int64, np.int32)):
-            cleaned_record[key] = int(value)
-        elif isinstance(value, (np.floating, np.float64, np.float32)):
-            cleaned_record[key] = float(value)
-        else:
-            cleaned_record[key] = value
-    return cleaned_record
-
 def excel_to_json(excel_file: str, json_file: str = None) -> None:
     """Convert Excel to JSON with color detection from first column of each row"""
     try:
@@ -204,18 +118,13 @@ def excel_to_json(excel_file: str, json_file: str = None) -> None:
         print(f"Reading {excel_file}...")
         df = pd.read_excel(excel_file)
         workbook = load_workbook(excel_file)
-        worksheet = workbook.active        
+        worksheet = workbook.active
+        
         records = df.to_dict('records')
+        
         # Process each row
         for i, record in enumerate(records):
             row_index = i + 2  # Skip header
-            
-            # Clean all record values first to handle pandas/numpy types
-            record = clean_record_values(record)
-            
-            # Format birth_date if it exists
-            if 'birth_date' in record:
-                record['birth_date'] = format_birth_date(record['birth_date'])
             
             # Check color of the first column cell only
             first_cell = worksheet.cell(row=row_index, column=1)
@@ -233,14 +142,12 @@ def excel_to_json(excel_file: str, json_file: str = None) -> None:
                     record['color'] = record['warna']
                 else:
                     record['color'] = None  # Set to None if no color info available
-            
-            # Update the record in the list
-            records[i] = record
-          # Save to JSON
+        
+        # Save to JSON
         if json_file is None:
             json_file = Path(excel_file).stem + '_colored.json'
         with open(json_file, 'w', encoding='utf-8') as f:
-            json.dump(records, f, indent=2, ensure_ascii=False, cls=CustomJSONEncoder)
+            json.dump(records, f, indent=2, ensure_ascii=False)
         
         colored_count = sum(1 for r in records if 'color' in r and r['color'])
         print(f"✅ Converted to {json_file}")
